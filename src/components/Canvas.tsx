@@ -1,5 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Tool } from './Toolbar';
+import { SelectionHandles } from './SelectionHandles';
+import { SnapGuides } from './SnapGuides';
+import { useTransformController } from '../hooks/useTransformController';
+import { snapSystem } from '../utils/snap';
+import { getBounds } from '../utils/matrix';
+import type { BoundingBox, Point, Command } from '../types/transform';
 
 interface CanvasProps {
   tool: Tool;
@@ -17,6 +23,8 @@ interface Shape {
   fill: string;
   stroke: string;
   strokeWidth: number;
+  transform?: string;
+  vectorEffect?: string;
 }
 
 export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
@@ -29,6 +37,75 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, width: 1200, height: 800 });
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
+  const [commandHistory, setCommandHistory] = useState<Command[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [snapGuides, setSnapGuides] = useState<any[]>([]);
+
+  // Calculate zoom level
+  const zoom = viewBox.width / 1200;
+
+  // Command execution for undo/redo
+  const executeCommand = useCallback((command: Command) => {
+    switch (command.type) {
+      case 'transform':
+        setShapes(prevShapes => 
+          prevShapes.map(shape => {
+            if (command.shapeIds.includes(shape.id)) {
+              return {
+                ...shape,
+                transform: `matrix(${command.matrix.a},${command.matrix.b},${command.matrix.c},${command.matrix.d},${command.matrix.e},${command.matrix.f})`
+              };
+            }
+            return shape;
+          })
+        );
+        break;
+      case 'create':
+        setShapes(prev => [...prev, command.shape]);
+        break;
+      case 'delete':
+        setShapes(prev => prev.filter(s => !command.shapeIds.includes(s.id)));
+        break;
+      case 'select':
+        setSelectedShapes(command.shapeIds);
+        break;
+    }
+    
+    // Add to history
+    const newHistory = commandHistory.slice(0, historyIndex + 1);
+    newHistory.push(command);
+    if (newHistory.length > 100) newHistory.shift(); // Cap at 100
+    setCommandHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [commandHistory, historyIndex]);
+
+  // Transform controller
+  const {
+    transformState,
+    currentSnapResult,
+    startTransform,
+    updateTransform,
+    endTransform,
+    cancelTransform,
+    isTransforming
+  } = useTransformController({
+    onTransformStart: () => {
+      // Pause any code sync while transforming
+    },
+    onTransformEnd: (shapeIds, matrix, bounds) => {
+      // Apply transform to shapes and add to history
+      executeCommand({
+        type: 'transform',
+        shapeIds,
+        matrix,
+        bounds
+      });
+    },
+    onSnapUpdate: (snapResult, bounds) => {
+      const guides = snapSystem.getSnapGuides(snapResult, bounds);
+      setSnapGuides(guides);
+    }
+  });
 
   // Convert screen coordinates to SVG coordinates
   const screenToSVG = useCallback((clientX: number, clientY: number) => {
@@ -44,6 +121,48 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
     };
   }, [viewBox]);
 
+  // Get selection bounds for handles
+  const getSelectionBounds = useCallback((): BoundingBox | null => {
+    if (selectedShapes.length === 0) return null;
+    
+    const selectedShapeObjects = shapes.filter(s => selectedShapes.includes(s.id));
+    if (selectedShapeObjects.length === 0) return null;
+    
+    const points: Point[] = [];
+    selectedShapeObjects.forEach(shape => {
+      points.push(
+        { x: shape.x, y: shape.y },
+        { x: shape.x + shape.width, y: shape.y },
+        { x: shape.x + shape.width, y: shape.y + shape.height },
+        { x: shape.x, y: shape.y + shape.height }
+      );
+    });
+    
+    return getBounds(points);
+  }, [shapes, selectedShapes]);
+
+  // Handle selection handle interactions
+  const handleHandleMouseDown = useCallback((handle: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const bounds = getSelectionBounds();
+    if (!bounds) return;
+    
+    const point = screenToSVG(e.clientX, e.clientY);
+    const mode = handle === 'rotate' ? 'rotate' : 'resize';
+    
+    startTransform(
+      mode,
+      handle,
+      point,
+      bounds,
+      e.shiftKey, // constrainAspect for resize
+      e.shiftKey  // constrainAngle for rotate
+    );
+  }, [getSelectionBounds, screenToSVG, startTransform]);
+
+  // Mouse event handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const point = screenToSVG(e.clientX, e.clientY);
@@ -55,11 +174,12 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
     }
 
     if (tool === 'pointer') {
-      // Handle selection
+      // Hit test for shape selection
       const target = e.target as SVGElement;
       const shapeId = target.getAttribute('data-shape-id');
       
       if (shapeId) {
+        // Shape clicked
         if (e.shiftKey) {
           setSelectedShapes(prev => 
             prev.includes(shapeId) 
@@ -69,14 +189,24 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
         } else {
           setSelectedShapes([shapeId]);
         }
+        
+        // Start move transform if not already transforming
+        if (!isTransforming) {
+          const bounds = getSelectionBounds();
+          if (bounds) {
+            startTransform('move', undefined, point, bounds);
+          }
+        }
       } else if (!e.shiftKey) {
+        // Clicked empty space - clear selection
         setSelectedShapes([]);
+        setSnapGuides([]);
       }
       return;
     }
 
     // Drawing tools
-    if (['rect', 'ellipse', 'line'].includes(tool)) {
+    if (['rect', 'ellipse', 'line', 'text'].includes(tool)) {
       setIsDrawing(true);
       setStartPoint(point);
       
@@ -94,9 +224,11 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
       
       setCurrentShape(newShape);
     }
-  }, [tool, screenToSVG]);
+  }, [tool, screenToSVG, isTransforming, getSelectionBounds, startTransform]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const point = screenToSVG(e.clientX, e.clientY);
+
     if (isPanning) {
       const deltaX = (e.clientX - lastPanPoint.x) * (viewBox.width / svgRef.current!.getBoundingClientRect().width);
       const deltaY = (e.clientY - lastPanPoint.y) * (viewBox.height / svgRef.current!.getBoundingClientRect().height);
@@ -111,9 +243,29 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
       return;
     }
 
+    // Handle transform updates
+    if (isTransforming && transformState) {
+      const result = updateTransform(point, selectedShapes, e.shiftKey, e.shiftKey);
+      if (result) {
+        // Update shapes temporarily during transform
+        setShapes(prevShapes => 
+          prevShapes.map(shape => {
+            if (selectedShapes.includes(shape.id)) {
+              return {
+                ...shape,
+                transform: `matrix(${result.matrix.a},${result.matrix.b},${result.matrix.c},${result.matrix.d},${result.matrix.e},${result.matrix.f})`
+              };
+            }
+            return shape;
+          })
+        );
+      }
+      return;
+    }
+
+    // Handle drawing
     if (!isDrawing || !currentShape) return;
 
-    const point = screenToSVG(e.clientX, e.clientY);
     const width = point.x - startPoint.x;
     const height = point.y - startPoint.y;
 
@@ -124,7 +276,7 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
       x: width < 0 ? point.x : startPoint.x,
       y: height < 0 ? point.y : startPoint.y
     } : null);
-  }, [isDrawing, isPanning, currentShape, startPoint, screenToSVG, lastPanPoint, viewBox]);
+  }, [isPanning, screenToSVG, lastPanPoint, viewBox, isTransforming, transformState, updateTransform, selectedShapes, isDrawing, currentShape, startPoint]);
 
   const handleMouseUp = useCallback(() => {
     if (isPanning) {
@@ -132,15 +284,59 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
       return;
     }
 
+    // End transform
+    if (isTransforming) {
+      endTransform(selectedShapes);
+      setSnapGuides([]);
+      return;
+    }
+
+    // End drawing
     if (isDrawing && currentShape) {
       if (currentShape.width > 5 || currentShape.height > 5) {
-        setShapes(prev => [...prev, currentShape]);
+        executeCommand({
+          type: 'create',
+          shape: currentShape
+        });
         onShapeCreate?.(currentShape);
       }
       setCurrentShape(null);
       setIsDrawing(false);
     }
-  }, [isPanning, isDrawing, currentShape, onShapeCreate]);
+  }, [isPanning, isTransforming, endTransform, selectedShapes, isDrawing, currentShape, executeCommand, onShapeCreate]);
+
+  // Keyboard handlers
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (selectedShapes.length === 0) return;
+
+    let dx = 0, dy = 0;
+    const step = e.shiftKey ? 10 : 1;
+
+    switch (e.key) {
+      case 'ArrowLeft': dx = -step; break;
+      case 'ArrowRight': dx = step; break;
+      case 'ArrowUp': dy = -step; break;
+      case 'ArrowDown': dy = step; break;
+      case 'Delete':
+        executeCommand({
+          type: 'delete',
+          shapeIds: selectedShapes
+        });
+        setSelectedShapes([]);
+        return;
+      default: return;
+    }
+
+    if (dx !== 0 || dy !== 0) {
+      e.preventDefault();
+        executeCommand({
+          type: 'transform',
+          shapeIds: selectedShapes,
+          matrix: { a: 1, b: 0, c: 0, d: 1, e: dx, f: dy },
+          bounds: { x: 0, y: 0, width: 0, height: 0 }
+        });
+    }
+  }, [selectedShapes, executeCommand]);
 
   // Handle wheel zoom
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -159,6 +355,7 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
     }));
   }, [viewBox]);
 
+  // Effects
   useEffect(() => {
     onSelection?.(selectedShapes);
   }, [selectedShapes, onSelection]);
@@ -171,6 +368,24 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
     }
   }, [handleWheel]);
 
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Update snap system when shapes change
+  useEffect(() => {
+    const candidates = shapes
+      .filter(s => !selectedShapes.includes(s.id))
+      .map(s => ({
+        id: s.id,
+        bounds: { x: s.x, y: s.y, width: s.width, height: s.height }
+      }));
+    
+    snapSystem.setCandidates(candidates);
+    snapSystem.setZoom(zoom);
+  }, [shapes, selectedShapes, zoom]);
+
   const renderShape = (shape: Shape) => {
     const isSelected = selectedShapes.includes(shape.id);
     const commonProps = {
@@ -179,7 +394,8 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
       fill: shape.fill,
       stroke: shape.stroke,
       strokeWidth: shape.strokeWidth,
-      className: isSelected ? 'ring-2 ring-selection-stroke' : '',
+      transform: shape.transform,
+      vectorEffect: shape.vectorEffect,
       style: { cursor: tool === 'pointer' ? 'pointer' : 'default' }
     };
 
@@ -214,10 +430,24 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
             y2={shape.y + shape.height}
           />
         );
+      case 'text':
+        return (
+          <text
+            {...commonProps}
+            x={shape.x}
+            y={shape.y + shape.height * 0.8}
+            fontSize={Math.max(12, shape.height * 0.8)}
+            dominantBaseline="alphabetic"
+          >
+            Text
+          </text>
+        );
       default:
         return null;
     }
   };
+
+  const selectionBounds = getSelectionBounds();
 
   return (
     <div className="editor-canvas-area">
@@ -265,21 +495,17 @@ export function Canvas({ tool, onShapeCreate, onSelection }: CanvasProps) {
         {/* Current drawing shape */}
         {currentShape && renderShape(currentShape)}
         
-        {/* Selection indicators */}
-        {selectedShapes.length > 0 && shapes
-          .filter(shape => selectedShapes.includes(shape.id))
-          .map(shape => (
-            <rect
-              key={`selection-${shape.id}`}
-              x={shape.x - 2}
-              y={shape.y - 2}
-              width={shape.width + 4}
-              height={shape.height + 4}
-              className="svg-selection-outline"
-              pointerEvents="none"
-            />
-          ))
-        }
+        {/* Selection handles */}
+        {selectionBounds && selectedShapes.length > 0 && (
+          <SelectionHandles 
+            bounds={selectionBounds}
+            zoom={zoom}
+            onHandleMouseDown={handleHandleMouseDown}
+          />
+        )}
+        
+        {/* Snap guides */}
+        <SnapGuides guides={snapGuides} zoom={zoom} />
       </svg>
     </div>
   );
