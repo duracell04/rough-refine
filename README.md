@@ -1,73 +1,55 @@
-# Welcome to your Lovable project
+# RoughRefine
 
-## Project info
+**Sketch fast. Refine precisely. Export clean SVG.**
 
-**URL**: https://lovable.dev/projects/5f1eef93-175e-471c-86db-8bf1b403f9b8
+RoughRefine is a **local-first SVG editor** that runs as a **pure web app (Vite + React PWA)**. It focuses on a calm, reliable flow: **Draw → Align → Export SVG**. No cloud, no accounts — everything runs locally in your browser and can be installed as a PWA for offline use.
 
-## How can I edit this code?
+## Why RoughRefine?
+- **Local-first & offline:** Works without internet after first load.
+- **Clean SVG output:** Pipeline-safe SVG for dev/design handoffs.
+- **Intentionally simple:** Core shapes, snapping, alignment, export — without heavyweight panels.
 
-There are several ways of editing your application.
+## Core features (v1)
+- **Shapes:** rect, ellipse, line, polygon, path (Pen/Bezier), text, group.
+- **Snapping:** bbox edges & centers; Shift locks to 0°/90°.
+- **Layout:** Align & Distribute (H/V), z-order, group/ungroup.
+- **Styling:** Solid fill, stroke width/dash/opacity, non-scaling strokes toggle.
+- **Import/Export:** Import SVG (groups & transforms preserved). Export **SVG** (pretty or SVGO “Production”) and **PNG** (1×/2×).
+- **Persistence:** Local autosave (IndexedDB), `.rrproj` (zip: `scene.json` + `/assets`).
+- **PWA:** Installable, offline-capable.
 
-**Use Lovable**
+> Not in v1: booleans, gradients, filters, rulers, PDF export, plugins, version graph UI.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/5f1eef93-175e-471c-86db-8bf1b403f9b8) and start prompting.
+## Getting started
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone https://github.com/duracell04/rough-refine.git
+cd rough-refine
+pnpm install
+pnpm dev      # open the printed localhost URL
+pnpm build && pnpm preview
 ```
 
-**Edit a file directly in GitHub**
+## Project structure
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```
+apps/
+  web/                # Vite + React PWA (the app)
 
-**Use GitHub Codespaces**
+packages/
+  core/               # canonical scene & command bus (reducers + undo/redo)
+  svg-renderer/       # authoritative SVG renderer (selection overlays, hit-test)
+  ui/                 # Toolbar, Inspector, ContextBar, Header, About
+  persistence/        # IndexedDB autosave, .rrproj I/O
+  brand/              # logo-concept.svg, icon-refine.svg, export-icons.mjs
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Tech stack
 
-## What technologies are used for this project?
+React + TypeScript, Vite, (Zustand or Redux Toolkit), SVGO, JSZip
+Vitest (unit), Playwright (E2E)
+VitePWA or custom Service Worker for offline
 
-This project is built with:
+## License
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/5f1eef93-175e-471c-86db-8bf1b403f9b8) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT

@@ -1,6 +1,6 @@
 # @roughrefine/brand
 
-Shared brand assets for the RoughRefine applications. The package ships the SVG concept artwork, a reusable sprite, and a Puppeteer export script that rasterises the mark for Electron and PWA entry points.
+Shared brand assets for the RoughRefine web application. The package ships the SVG concept artwork, a reusable sprite, and an export script powered by `@resvg/resvg-js` that rasterises the refined mark for PWA icons.
 
 ## Usage
 
@@ -14,10 +14,10 @@ The concept illustration can be imported as raw markup for marketing surfaces su
 
 ## Icon exports
 
-The `export-icons.mjs` script renders the concept SVG at multiple sizes and writes them into `packages/brand/dist/icons` for consumption by Electron and the web manifest.
+The `export-icons.mjs` script renders the refined icon SVG at 192px and 512px and writes them into `apps/web/public/icons` for consumption by the web manifest.
 
 ```bash
-node packages/brand/scripts/export-icons.mjs
+pnpm --filter @roughrefine/brand exec node scripts/export-icons.mjs
 ```
 
-The script requires `puppeteer` and `jszip` which are installed as dev dependencies in the workspace.
+The script requires `@resvg/resvg-js`, installed as a dev dependency of this package.

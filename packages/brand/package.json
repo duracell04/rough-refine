@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "files": [
+    "icon-refine.svg",
     "logo-concept.svg",
     "logo-sprite.svg",
     "scripts",
@@ -11,7 +12,11 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./icon-refine.svg": "./icon-refine.svg",
     "./logo-concept.svg": "./logo-concept.svg",
     "./logo-sprite.svg": "./logo-sprite.svg"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2"
   }
 }
