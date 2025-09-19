@@ -133,7 +133,7 @@
 @layer components {
   /* Editor Layout Components */
   .editor-layout {
-    @apply h-screen bg-canvas flex flex-col;
+    @apply flex-1 bg-canvas flex flex-col;
   }
   
   .editor-toolbar {

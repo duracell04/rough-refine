@@ -1,0 +1,12 @@
+{
+  "name": "@roughrefine/bisync",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
