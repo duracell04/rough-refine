@@ -1,0 +1,17 @@
+{
+  "name": "@roughrefine/brand",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "files": [
+    "logo-concept.svg",
+    "logo-sprite.svg",
+    "scripts",
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./logo-concept.svg": "./logo-concept.svg",
+    "./logo-sprite.svg": "./logo-sprite.svg"
+  }
+}

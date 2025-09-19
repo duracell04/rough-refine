@@ -1,0 +1,42 @@
+export const Allowed = {
+  elements: new Set([
+    "svg",
+    "g",
+    "rect",
+    "ellipse",
+    "line",
+    "polyline",
+    "polygon",
+    "path",
+    "text",
+  ]),
+  attrs: new Set([
+    "id",
+    "x",
+    "y",
+    "width",
+    "height",
+    "rx",
+    "ry",
+    "cx",
+    "cy",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "points",
+    "d",
+    "transform",
+    "fill",
+    "stroke",
+    "stroke-width",
+    "stroke-dasharray",
+    "opacity",
+    "vector-effect",
+    "text-anchor",
+    "dominant-baseline",
+  ]),
+} as const;
+
+export type AllowedElement = typeof Allowed.elements extends Set<infer T> ? T : never;
+export type AllowedAttribute = typeof Allowed.attrs extends Set<infer T> ? T : never;

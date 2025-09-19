@@ -10,9 +10,14 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? "0.0.0"),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@roughrefine/brand": path.resolve(__dirname, "./packages/brand/src"),
+      "@roughrefine/bisync": path.resolve(__dirname, "./packages/bisync/src"),
     },
   },
 }));

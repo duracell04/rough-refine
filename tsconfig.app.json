@@ -23,7 +23,10 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@roughrefine/brand": ["./packages/brand/src/index.ts"],
+      "@roughrefine/bisync": ["./packages/bisync/src/index.ts"],
+      "@roughrefine/bisync/*": ["./packages/bisync/src/*"]
     }
   },
   "include": ["src"]

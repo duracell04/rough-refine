@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">RoughRefine concept mark</title>
+  <desc id="desc">Dual-layered R monogram representing sketching and refinement.</desc>
+  <rect width="320" height="320" rx="40" fill="#0B1F3A" />
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="22">
+    <path d="M108 64v192" stroke="#88A2C4" stroke-dasharray="28 18" opacity="0.8" />
+    <path d="M108 104h92c40 0 72 32 72 72s-32 72-72 72h-36l92 72" stroke="#88A2C4" stroke-dasharray="24 16" opacity="0.75" />
+    <path d="M120 72v176" stroke="#F4F7FB" />
+    <path d="M120 120h88c32 0 58 26 58 58s-26 58-58 58h-34l82 70" stroke="#F4F7FB" />
+  </g>
+</svg>
